@@ -24,7 +24,7 @@
 还没上架 Chrome 应用商店，用「加载已解压的扩展程序」安装：
 
 ```bash
-git clone <仓库地址> && cd translate_online
+git clone https://github.com/helper15901590/translate_online.git && cd translate_online
 ```
 
 1. 打开 `chrome://extensions/`
@@ -309,3 +309,7 @@ tools/                   图标生成、自测脚本
 - 音频只会发往你配置的 DashScope 地址，不经过任何中间服务器。
 - 开启逐段翻译后，**识别出的文本**同样只发往 DashScope 做翻译，不会发给其他任何地方。
 - 转录结果保留到你自己点「清空」为止。
+
+## 许可
+
+[MIT](LICENSE)
