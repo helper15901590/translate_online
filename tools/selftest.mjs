@@ -21,9 +21,14 @@ import {
   normalizeVocabulary,
   shouldTranslate,
 } from '../lib/translate.js';
-import { buildMarkdown, buildPlainText, collectVocabulary, hasTranslation } from '../lib/markdown.js';
+import {
+  buildMarkdown,
+  collectVocabulary,
+  translationAttempted,
+} from '../lib/markdown.js';
 import { buildFilename, formatClock, formatTimestamp, sanitizeFilename } from '../lib/format.js';
-import { DEFAULT_SETTINGS } from '../lib/settings.js';
+import { DEFAULT_SETTINGS, isAllowedBaseUrl, validateSettings } from '../lib/settings.js';
+import { windowEnergy, findCutPoint, estimateBase64Bytes } from '../lib/audio-slice.js';
 
 let passed = 0;
 const failures = [];
@@ -48,6 +53,43 @@ function ascii(view, offset, length) {
 /** 去掉注释再断言，免得注释里提到的代码被误判成真实调用。 */
 function stripComments(source) {
   return source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+}
+
+/**
+ * 改动前的切片实现：先把分块缓冲拼成一个连续数组，再扫窗口找最安静的位置。
+ *
+ * 只作为等价性参照存在 —— 现在的实现改成逐块推进，省掉每次切片复制十几 MB 的
+ * 开销，但切点必须和原来一模一样，否则静音对齐会漂移。
+ */
+function findCutPointReference({ chunks, totalLength, target, searchSamples, windowSamples }) {
+  const searchStart = Math.max(1, target - searchSamples);
+  const windowCount = Math.floor((target - searchStart) / windowSamples);
+  if (windowCount < 2) return target;
+
+  const flat = new Float32Array(totalLength);
+  let offset = 0;
+  for (const chunk of chunks) {
+    flat.set(chunk, offset);
+    offset += chunk.length;
+  }
+
+  let bestIndex = -1;
+  let bestEnergy = Infinity;
+
+  for (let w = 0; w < windowCount; w++) {
+    const from = searchStart + w * windowSamples;
+    const to = Math.min(from + windowSamples, flat.length);
+    let energy = 0;
+    for (let i = from; i < to; i++) energy += flat[i] * flat[i];
+    energy /= to - from;
+
+    if (energy < bestEnergy) {
+      bestEnergy = energy;
+      bestIndex = to;
+    }
+  }
+
+  return bestIndex > 0 ? bestIndex : target;
 }
 
 /* --------------------------------------------------------------- 重采样 */
@@ -406,13 +448,6 @@ await test('中文时长描述带单位分隔', () => {
 await test('没有内容时给出明确说明而不报错', () => {
   const md = buildMarkdown({ ...session, segments: [] }, settings);
   assert.match(md, /未捕获到任何音频内容/);
-});
-
-await test('纯文本导出只包含正文', () => {
-  const text = buildPlainText(session);
-  assert.ok(text.includes('大家好'));
-  assert.ok(!text.includes('#'));
-  assert.ok(!text.includes('请求超时'));
 });
 
 await test('Markdown 里的特殊字符不被转义破坏', () => {
@@ -814,9 +849,14 @@ const bilingualSession = {
   ],
 };
 
-await test('识别到译文时切换成双语版', () => {
-  assert.equal(hasTranslation(bilingualSession), true);
-  assert.equal(hasTranslation(session), false);
+await test('尝试过翻译就用双语版，没尝试过保持单语', () => {
+  // 判断依据是「尝试过翻译」而不是「有成功的译文」—— 全部翻译失败时也要
+  // 保留双语骨架，好让错误露出来，而不是悄悄退回单语
+  assert.equal(translationAttempted(bilingualSession), true);
+  assert.equal(translationAttempted(session), false, '老会话没有 translateStatus 字段');
+
+  assert.match(buildMarkdown(bilingualSession, translateSettings), /^## 逐段对照$/m);
+  assert.doesNotMatch(buildMarkdown(session, translateSettings), /^## 逐段对照$/m);
 });
 
 await test('双语版包含四个章节', () => {
@@ -921,11 +961,143 @@ await test('没开翻译时保持原来的单语格式', () => {
   assert.doesNotMatch(md, /翻译模型/);
 });
 
-await test('纯文本导出在双语会话下原文译文交替', () => {
-  const text = buildPlainText(bilingualSession);
-  assert.match(text, /Hello everyone, welcome to the show\.\n大家好，欢迎来到本期节目。/);
-  // 关掉翻译开关时只留原文
-  assert.doesNotMatch(buildPlainText(bilingualSession, { includeTranslation: false }), /大家好/);
+/* ------------------------------------------------------------ 切片决策 */
+
+console.log('\n切片决策');
+
+await test('窗口跨分块时能量累加正确', () => {
+  const a = new Float32Array([1, 1, 1, 1]);
+  const b = new Float32Array([1, 1, 1, 1]);
+  const c = new Float32Array([1, 1]);
+
+  assert.equal(windowEnergy([a, b, c], 2, 6), 1, '正好跨 a/b 边界');
+  assert.equal(windowEnergy([a, b, c], 3, 5), 1, '起止都在块内');
+  assert.equal(windowEnergy([a, b, c], 0, 10), 1, '整段');
+  assert.equal(windowEnergy([b], 0, 4), 1, '单块');
+});
+
+await test('空窗口不会被当成最安静的窗口', () => {
+  // 固定住退化时的行为：返回 Infinity（永不胜出），而不是 0（会立刻胜出，
+  // 把切点定到缓冲区外面去）
+  assert.equal(windowEnergy([new Float32Array(10)], 5, 5), Infinity);
+  assert.equal(windowEnergy([new Float32Array(10)], 8, 3), Infinity);
+});
+
+await test('切点落在最安静的窗口末尾', () => {
+  const chunk = new Float32Array(300);
+  for (let i = 0; i < 100; i++) chunk[i] = 0.5; // 有声
+  for (let i = 100; i < 200; i++) chunk[i] = 0.001; // 安静
+  for (let i = 200; i < 300; i++) chunk[i] = 0.5;
+
+  // searchStart = 1，窗口数 = floor((300-1)/100) = 2：
+  //   窗口1 [1,101)  能量 ≈ 0.2475
+  //   窗口2 [101,201) 能量 ≈ 0.0025 ← 更安静，应当选它
+  const cut = findCutPoint({
+    chunks: [chunk],
+    totalLength: 300,
+    target: 300,
+    searchSamples: 300,
+    windowSamples: 100,
+  });
+
+  assert.equal(cut, 201);
+});
+
+await test('窗口不足两个时退回目标切点', () => {
+  const chunk = new Float32Array(1000);
+  // target 太靠前，searchStart 被夹到 1，凑不满两个窗口
+  assert.equal(
+    findCutPoint({ chunks: [chunk], totalLength: 1000, target: 10, searchSamples: 2000, windowSamples: 50 }),
+    10,
+  );
+});
+
+await test('findCutPoint 与改动前的实现结果完全一致', () => {
+  // 这次优化把「先拼成连续数组再扫窗口」换成了「逐块推进」。切点必须一模一样，
+  // 否则静音对齐会漂移。用 200 组随机分块数据做等价性验证。
+  let seed = 12345;
+  const rand = () => {
+    seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+    return seed / 0x7fffffff;
+  };
+
+  for (let trial = 0; trial < 200; trial++) {
+    const chunks = [];
+    let total = 0;
+    // 随机长度分块，模拟 AudioWorklet 每 128 帧抛一块
+    while (total < 5000) {
+      const length = 1 + Math.floor(rand() * 200);
+      const chunk = new Float32Array(length);
+      for (let i = 0; i < length; i++) chunk[i] = rand() * 2 - 1;
+      chunks.push(chunk);
+      total += length;
+    }
+
+    const target = Math.floor(total * 0.6) + 1;
+    const params = {
+      chunks,
+      totalLength: total,
+      target,
+      searchSamples: Math.floor(total * 0.2),
+      windowSamples: 7 + Math.floor(rand() * 30),
+    };
+
+    assert.equal(
+      findCutPoint(params),
+      findCutPointReference(params),
+      `第 ${trial} 组不一致：total=${total} target=${target} window=${params.windowSamples}`,
+    );
+  }
+});
+
+await test('体积估算与 resample 的真实输出长度分毫不差', () => {
+  // 估小了会让本该拆分的分片超限被拒，估大了会白拆一刀。
+  for (const fromRate of [48000, 44100, 32000, 8000]) {
+    for (const toRate of [16000, 22050, 44100, 48000]) {
+      for (const count of [0, 1, 127, 128, 999, 16000, 96000, 2880001]) {
+        assert.equal(
+          estimateBase64Bytes(count, fromRate, toRate),
+          resample(new Float32Array(count), fromRate, toRate).length * 2 * (4 / 3),
+          `from=${fromRate} to=${toRate} count=${count}`,
+        );
+      }
+    }
+  }
+});
+
+/* -------------------------------------------------- 自定义地址的权限校验 */
+
+console.log('\n自定义地址权限校验');
+
+await test('只放行 manifest 里声明过的域名', () => {
+  assert.equal(isAllowedBaseUrl('https://dashscope.aliyuncs.com'), true);
+  assert.equal(isAllowedBaseUrl('https://dashscope-intl.aliyuncs.com'), true);
+  assert.equal(isAllowedBaseUrl('https://ws123.cn-beijing.maas.aliyuncs.com'), true);
+  assert.equal(isAllowedBaseUrl('https://maas.aliyuncs.com'), true, '与 Chrome 的 *. 通配一致，裸域也算');
+  assert.equal(isAllowedBaseUrl('https://dashscope.aliyuncs.com/compatible-mode'), true, '带路径不影响');
+
+  assert.equal(isAllowedBaseUrl('https://asr-proxy.example.com'), false, '自建代理不在权限内');
+  assert.equal(isAllowedBaseUrl('http://dashscope.aliyuncs.com'), false, '必须是 https');
+  assert.equal(isAllowedBaseUrl('https://dashscope.aliyuncs.com.evil.com'), false, '后缀伪装');
+  assert.equal(isAllowedBaseUrl('https://evil.com/#dashscope.aliyuncs.com'), false, '别处提到不算');
+  assert.equal(isAllowedBaseUrl(''), false);
+  assert.equal(isAllowedBaseUrl('not a url'), false);
+});
+
+await test('白名单外的自定义地址会被拦下，并告诉用户能用什么', () => {
+  const base = { ...DEFAULT_SETTINGS, apiKey: 'sk-test', region: 'custom' };
+
+  assert.equal(
+    validateSettings({ ...base, customBaseUrl: '' }),
+    '选择了「自定义地址」但未填写 Base URL。',
+  );
+
+  const message = validateSettings({ ...base, customBaseUrl: 'https://asr-proxy.example.com' });
+  assert.match(message, /不在插件申请的权限范围内/);
+  assert.match(message, /maas\.aliyuncs\.com/, '提示里要写清楚哪些域名可用');
+
+  // 合法的专属域名要放行
+  assert.equal(validateSettings({ ...base, customBaseUrl: 'https://ws1.maas.aliyuncs.com' }), null);
 });
 
 /* ------------------------------------------------------------ 打包完整性 */
@@ -948,6 +1120,18 @@ function walk(dir) {
 const allFiles = walk(ROOT);
 const relative = (file) => relative_(ROOT, file).replace(/\\/g, '/');
 const exists = (relativePath) => existsSync(join(ROOT, relativePath));
+
+await test('状态查询不回传整个 session', () => {
+  // 这条消息调用极其频繁（每次存储变化触发角标刷新，外加 popup 每 2 秒轮询），
+  // 而长会话的 session 有几百 KB。SW 侧从来不读它，会话状态一律从 storage 取。
+  const source = stripComments(readFileSync(join(ROOT, 'offscreen.js'), 'utf8'));
+  const block = source.match(/async OFFSCREEN_STATUS\(\)[\s\S]*?\n  \},/);
+
+  assert.ok(block, '找不到 OFFSCREEN_STATUS');
+  assert.doesNotMatch(block[0], /^\s*session,$/m, '不该把 session 一起回传');
+  assert.match(block[0], /alive,/, '该有的字段不能少');
+  assert.match(block[0], /pendingTranslate/, '该有的字段不能少');
+});
 
 await test('manifest.json 合法且引用的文件都存在', () => {
   const manifest = JSON.parse(readFileSync(join(ROOT, 'manifest.json'), 'utf8'));
