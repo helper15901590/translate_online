@@ -271,7 +271,7 @@ DashScope 的 `paraformer-realtime-v2` 要求鉴权信息放在 WebSocket 握手
 node tools/selftest.mjs
 ```
 
-跑 66 项自测：重采样、WAV 编码、base64、识别与翻译两条链路的请求构造和响应解析、错误重试策略、JSON 提取与降级、生词清洗与去重、Markdown 的单语/双语两种渲染，外加打包完整性检查——manifest 引用、import 路径、HTML 资源路径、源码里的控制字符、权限白名单，以及三条专门防踩坑的：**offscreen 文档里不许出现 `chrome.storage`**、**各个页面发出的消息 Service Worker 都必须有对应处理**、**提示词里的 JSON 示例本身必须是合法 JSON**（这条是真的踩过）。
+跑 90 项自测：重采样、WAV 编码、base64、切片决策、识别与翻译两条链路的请求构造和响应解析、错误重试策略、JSON 提取与降级、生词清洗与去重、自定义地址的权限校验、Markdown 的单语/双语两种渲染，外加打包完整性检查——manifest 引用、import 路径、HTML 资源路径、源码里的控制字符、权限白名单，以及几条专门防踩坑的：**offscreen 文档里不许出现 `chrome.storage`**、**各个页面发出的消息 Service Worker 都必须有对应处理**、**提示词里的 JSON 示例本身必须是合法 JSON**、**切点算法必须和优化前的实现逐位一致**（这几条都是真的踩过）。
 
 改动图标后重新生成 PNG：
 
@@ -289,6 +289,7 @@ worklet/pcm-processor.js AudioWorklet：把每一帧原始 PCM 抛回主线程
 lib/
   http.js                DashScope 各接口共用的超时、重试、错误翻译
   wav.js                 重采样、16-bit WAV 编码、base64
+  audio-slice.js         切片决策：在分块缓冲里找静音点、估算编码体积
   dashscope.js           语音识别客户端：两个通道、请求构造、响应解析
   translate.js           翻译与生词提取：提示词、JSON 提取、结果规整
   markdown.js            会话 → Markdown（单语 / 双语两种渲染）

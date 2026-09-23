@@ -15,6 +15,7 @@
  */
 
 import { resample, encodeWav16 } from './lib/wav.js';
+import { findCutPoint, estimateBase64Bytes } from './lib/audio-slice.js';
 import { transcribe, MAX_BASE64_BYTES } from './lib/dashscope.js';
 import { translateSegment, shouldTranslate } from './lib/translate.js';
 import { buildMarkdown } from './lib/markdown.js';
@@ -33,6 +34,9 @@ let session = null;
 let settings = null;
 let captureRate = 48000;
 let chunkTargetSamples = 0;
+/** 切片的静音搜索范围与能量窗口大小，在 startCapture 里按实际采样率算好 */
+let silenceSearchSamples = 0;
+let silenceWindowSamples = 0;
 let buffered = [];
 let bufferedLength = 0;
 let emittedSamples = 0;
@@ -172,6 +176,8 @@ async function startCapture({ streamId, meta, settings: incomingSettings }) {
   }
   captureRate = ctx.sampleRate;
   chunkTargetSamples = Math.round(settings.chunkSeconds * captureRate);
+  silenceSearchSamples = Math.round(SILENCE_SEARCH_SEC * captureRate);
+  silenceWindowSamples = Math.round(SILENCE_WINDOW_SEC * captureRate);
 
   const source = ctx.createMediaStreamSource(stream);
   await ctx.audioWorklet.addModule(chrome.runtime.getURL('worklet/pcm-processor.js'));
@@ -224,7 +230,14 @@ function onPcm(mono) {
   bufferedLength += mono.length;
 
   while (bufferedLength >= chunkTargetSamples) {
-    const cut = findCutPoint();
+    const cut = findCutPoint({
+      chunks: buffered,
+      totalLength: bufferedLength,
+      target: chunkTargetSamples,
+      searchSamples: silenceSearchSamples,
+      windowSamples: silenceWindowSamples,
+    });
+
     if (cut <= 0) break;
     const samples = takeSamples(cut);
     const startSec = samplesToSec(emittedSamples);
@@ -232,51 +245,6 @@ function onPcm(mono) {
     const endSec = samplesToSec(emittedSamples);
     enqueueAudio(samples, startSec, endSec);
   }
-}
-
-/**
- * 在目标切点前 SILENCE_SEARCH_SEC 秒里找能量最低的位置。
- * 直接按固定长度硬切很容易把词切一半，往静音处挪一下能显著减少断句错误。
- */
-function findCutPoint() {
-  const target = chunkTargetSamples;
-  const searchSamples = Math.round(SILENCE_SEARCH_SEC * captureRate);
-  const windowSamples = Math.round(SILENCE_WINDOW_SEC * captureRate);
-
-  const searchStart = Math.max(1, target - searchSamples);
-  const windowCount = Math.floor((target - searchStart) / windowSamples);
-  if (windowCount < 2) return target;
-
-  // 把缓冲区拼成连续数组才能做窗口能量统计
-  const flat = concatBuffer();
-
-  let bestIndex = -1;
-  let bestEnergy = Infinity;
-
-  for (let w = 0; w < windowCount; w++) {
-    const from = searchStart + w * windowSamples;
-    const to = Math.min(from + windowSamples, flat.length);
-    let energy = 0;
-    for (let i = from; i < to; i++) energy += flat[i] * flat[i];
-    energy /= to - from;
-
-    if (energy < bestEnergy) {
-      bestEnergy = energy;
-      bestIndex = to;
-    }
-  }
-
-  return bestIndex > 0 ? bestIndex : target;
-}
-
-function concatBuffer() {
-  const flat = new Float32Array(bufferedLength);
-  let offset = 0;
-  for (const chunk of buffered) {
-    flat.set(chunk, offset);
-    offset += chunk.length;
-  }
-  return flat;
 }
 
 /** 从缓冲区头部取走 count 个样本。 */
@@ -310,8 +278,8 @@ function takeSamples(count) {
  * 就二分再拆，保证每个任务都是合法请求。
  */
 function enqueueAudio(samples, startSec, endSec) {
-  const resampled = resample(samples, captureRate, settings.sampleRate);
-  const estimatedBase64 = resampled.length * 2 * (4 / 3);
+  // 体积直接由采样点数推算，不必先重采样一遍再扔掉（式子见 audio-slice.js）
+  const estimatedBase64 = estimateBase64Bytes(samples.length, captureRate, settings.sampleRate);
 
   if (estimatedBase64 > MAX_BASE64_BYTES && samples.length > captureRate) {
     const half = Math.floor(samples.length / 2);
@@ -321,6 +289,7 @@ function enqueueAudio(samples, startSec, endSec) {
     return;
   }
 
+  const resampled = resample(samples, captureRate, settings.sampleRate);
   const wavBuffer = encodeWav16(resampled, settings.sampleRate);
   const segment = {
     index: session.segments.length,
@@ -336,7 +305,6 @@ function enqueueAudio(samples, startSec, endSec) {
     translateStatus: 'idle',
     translateError: null,
     vocab: [],
-    vocabStatus: 'idle',
   };
   session.segments.push(segment);
   persist();
@@ -538,11 +506,14 @@ async function stopCapture({ reason = 'user' } = {}) {
 
   // 1. 把残留的尾巴也送出去
   if (bufferedLength > MIN_TAIL_SEC * captureRate) {
-    const samples = takeSamples(bufferedLength);
+    const samples = takeSamples(bufferedLength); // 内部会把缓冲区排空
     const startSec = samplesToSec(emittedSamples);
     emittedSamples += samples.length;
     enqueueAudio(samples, startSec, samplesToSec(emittedSamples));
   }
+
+  // 这几行不能挪进上面的 if：尾巴太短会跳过 takeSamples，缓冲区里还留着
+  // 数据，得在这里释放掉。
   buffered = [];
   bufferedLength = 0;
 
@@ -683,10 +654,14 @@ const handlers = {
   },
 
   async OFFSCREEN_STATUS() {
-    // 有三种「没有 capture 但会话显然还活着」的情况，SW 需要能分辨它们：
+    // 三种「没有 capture 但会话显然还活着」的情况，SW 需要能分辨它们：
     //   starting  —— 会话已建立，音频图还没接上
     //   finishing —— 音频已断，但识别/翻译队列里还有活
     // 只看 capturing 的话，这两种正常中间态都会被误判成「后台页面被回收」。
+    //
+    // 这里**不要**把 session 一起回传：这条消息每次存储变化都会被调一次
+    // （角标刷新）外加 popup 每 2 秒轮询一次，而长会话的 session 有几百 KB，
+    // 序列化过去却没有任何读取方 —— 会话状态一律由 SW 从 storage 里读。
     const starting = Boolean(session) && !capture && session.status === 'starting';
     const finishing = Boolean(session) && !capture && session.status === 'finishing';
     const alive = Boolean(capture) || starting || finishing;
@@ -702,7 +677,6 @@ const handlers = {
       // 识别和翻译分开报，前端可以分别显示进度
       pending: asrQueue.length,
       pendingTranslate: translateQueue.length,
-      session,
     };
   },
 };
