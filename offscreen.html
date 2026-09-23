@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <title>音频捕获</title>
+  </head>
+  <body>
+    <!--
+      这个页面不显示给用户。它存在的唯一原因是：MV3 的 Service Worker 里没有
+      DOM，拿不到 getUserMedia / AudioContext / AudioWorklet，而这些是捕获标签页
+      音频所必需的。
+    -->
+    <script type="module" src="offscreen.js"></script>
+  </body>
+</html>

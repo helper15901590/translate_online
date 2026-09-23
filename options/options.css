@@ -1,0 +1,346 @@
+:root {
+  --bg: #f6f6f8;
+  --card: #ffffff;
+  --fg: #18181b;
+  --fg-muted: #6b6b74;
+  --fg-faint: #9c9ca5;
+  --border: #e6e6ea;
+  --border-strong: #d4d4d9;
+  --accent: #4f46e5;
+  --accent-fg: #ffffff;
+  --accent-soft: #eef2ff;
+  --ok: #15803d;
+  --ok-soft: #f0fdf4;
+  --danger: #b91c1c;
+  --danger-soft: #fef2f2;
+  --radius: 10px;
+  --shadow: 0 1px 2px rgb(0 0 0 / 4%), 0 6px 20px rgb(0 0 0 / 5%);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #131417;
+    --card: #1c1d21;
+    --fg: #ececef;
+    --fg-muted: #9d9da6;
+    --fg-faint: #6f6f78;
+    --border: #2c2d33;
+    --border-strong: #3a3b42;
+    --accent: #6366f1;
+    --accent-soft: #262a4d;
+    --ok: #4ade80;
+    --ok-soft: #17281d;
+    --danger: #f87171;
+    --danger-soft: #33201f;
+    --shadow: 0 1px 2px rgb(0 0 0 / 40%), 0 6px 24px rgb(0 0 0 / 30%);
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* 见 popup.css 里的同名规则：作者样式的 display 会盖掉 hidden 属性 */
+[hidden] {
+  display: none !important;
+}
+
+body {
+  margin: 0;
+  padding: 40px 20px 80px;
+  background: var(--bg);
+  color: var(--fg);
+  font: 14px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+    "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.page {
+  max-width: 660px;
+  margin: 0 auto;
+}
+
+.page-head {
+  margin-bottom: 22px;
+}
+
+.page-head h1 {
+  margin: 0 0 6px;
+  font-size: 21px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.sub {
+  margin: 0;
+  color: var(--fg-muted);
+  font-size: 13.5px;
+}
+
+/* ------------------------------------------------------------------ 卡片 */
+
+.card {
+  padding: 20px 22px;
+  margin-bottom: 16px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--card);
+  box-shadow: var(--shadow);
+}
+
+.card h2 {
+  margin: 0 0 16px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+  font-size: 14px;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  color: var(--fg);
+}
+
+/* ------------------------------------------------------------------ 表单 */
+
+.field {
+  margin-bottom: 18px;
+}
+
+.field:last-child {
+  margin-bottom: 0;
+}
+
+.field label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+input[type="text"],
+input[type="password"],
+input[type="number"],
+select,
+textarea {
+  width: 100%;
+  padding: 8px 11px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--card);
+  color: var(--fg);
+  font: inherit;
+  font-size: 13.5px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+input[type="number"] {
+  max-width: 160px;
+}
+
+textarea {
+  resize: vertical;
+  min-height: 62px;
+  line-height: 1.55;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--fg-faint);
+}
+
+/* API Key 输入框 + 显示按钮 */
+.secret {
+  position: relative;
+}
+
+.secret input {
+  padding-right: 58px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 13px;
+}
+
+.reveal {
+  position: absolute;
+  top: 50%;
+  right: 5px;
+  transform: translateY(-50%);
+  padding: 4px 9px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--fg-muted);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.reveal:hover {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.help {
+  margin: 6px 0 0;
+  color: var(--fg-muted);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.help a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.help a:hover {
+  text-decoration: underline;
+}
+
+.help code {
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11.5px;
+}
+
+/* ------------------------------------------------------------------ 复选 */
+
+.check {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 11px 12px;
+  margin-bottom: 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.check:last-child {
+  margin-bottom: 0;
+}
+
+.check:hover {
+  border-color: var(--border-strong);
+  background: var(--bg);
+}
+
+.check input {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  margin: 2px 0 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.check span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.check strong {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.check em {
+  color: var(--fg-muted);
+  font-size: 12px;
+  font-style: normal;
+  line-height: 1.55;
+}
+
+/* ------------------------------------------------------------------ 按钮 */
+
+.actions {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.btn {
+  padding: 9px 18px;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: filter 0.15s ease, background 0.15s ease;
+}
+
+.btn.primary {
+  background: var(--accent);
+  color: var(--accent-fg);
+}
+
+.btn.primary:hover {
+  filter: brightness(1.08);
+}
+
+.btn.secondary {
+  border-color: var(--border-strong);
+  background: var(--card);
+  color: var(--fg);
+}
+
+.btn.secondary:hover {
+  background: var(--bg);
+}
+
+.btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.test-result {
+  flex: 1;
+  min-width: 0;
+  padding-top: 8px;
+  font-size: 12.5px;
+  /* 测试结果是多行汇报（识别 / 翻译 / 生词示例），需要保留换行 */
+  white-space: pre-line;
+  line-height: 1.6;
+}
+
+.test-result.ok {
+  color: var(--ok);
+}
+
+.test-result.fail {
+  color: var(--danger);
+}
+
+.test-result.pending {
+  color: var(--fg-muted);
+}
+
+/* ------------------------------------------------------------------ 页脚 */
+
+.page-foot {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 4px;
+  padding: 14px 0 20px;
+  /* 不加背景的话卡片会从工具栏下面透出来 */
+  background: color-mix(in srgb, var(--bg) 86%, transparent);
+  backdrop-filter: blur(10px);
+}
+
+.save-state {
+  color: var(--ok);
+  font-size: 12.5px;
+  font-weight: 500;
+}

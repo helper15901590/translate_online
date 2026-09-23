@@ -1,0 +1,47 @@
+{
+  "manifest_version": 3,
+  "name": "网页视频转文字 · DashScope ASR",
+  "version": "1.0.0",
+  "description": "捕获当前标签页正在播放的视频/音频，通过阿里云百炼 DashScope 语音识别转成文字，并导出 Markdown。",
+  "minimum_chrome_version": "116",
+
+  "permissions": [
+    "tabCapture",
+    "offscreen",
+    "storage",
+    "activeTab",
+    "scripting",
+    "downloads"
+  ],
+
+  "host_permissions": [
+    "https://dashscope.aliyuncs.com/*",
+    "https://dashscope-intl.aliyuncs.com/*",
+    "https://*.maas.aliyuncs.com/*"
+  ],
+
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+
+  "action": {
+    "default_title": "网页视频转文字",
+    "default_popup": "popup/popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+
+  "options_page": "options/options.html"
+}

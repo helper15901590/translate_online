@@ -1,0 +1,595 @@
+:root {
+  --bg: #ffffff;
+  --bg-soft: #f7f7f9;
+  --bg-sunken: #f1f1f4;
+  --fg: #18181b;
+  --fg-muted: #71717a;
+  --fg-faint: #a1a1aa;
+  --border: #e6e6ea;
+  --accent: #4f46e5;
+  --accent-fg: #ffffff;
+  --accent-soft: #eef2ff;
+  --danger: #dc2626;
+  --danger-soft: #fef2f2;
+  --ok: #16a34a;
+  --shadow: 0 1px 2px rgb(0 0 0 / 6%), 0 4px 12px rgb(0 0 0 / 4%);
+  --radius: 10px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1b1c1f;
+    --bg-soft: #232428;
+    --bg-sunken: #17181b;
+    --fg: #ececef;
+    --fg-muted: #9d9da6;
+    --fg-faint: #6f6f78;
+    --border: #2e2f35;
+    --accent: #6366f1;
+    --accent-soft: #262a4d;
+    --danger: #f87171;
+    --danger-soft: #3a2222;
+    --ok: #4ade80;
+    --shadow: 0 1px 2px rgb(0 0 0 / 40%), 0 4px 14px rgb(0 0 0 / 25%);
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/*
+ * hidden 属性靠 UA 样式表的 display:none 生效，但作者样式里的 display:flex
+ * 优先级更高会把它顶掉。下面这些元素都用 JS 切 .hidden 来显示/隐藏，
+ * 所以必须显式把这条规则提上来。
+ */
+[hidden] {
+  display: none !important;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  width: 420px;
+  height: 592px;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--fg);
+  font: 13px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+    "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+/* ------------------------------------------------------------- 顶部标题栏 */
+
+.bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.brand-title {
+  font-size: 13.5px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+}
+
+.pulse {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--fg-faint);
+  transition: background 0.2s ease;
+}
+
+.pulse.on {
+  background: var(--danger);
+  animation: pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgb(220 38 38 / 45%);
+  }
+  60% {
+    box-shadow: 0 0 0 6px rgb(220 38 38 / 0%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pulse.on {
+    animation: none;
+  }
+}
+
+.bar-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.icon-btn {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--fg-muted);
+  cursor: pointer;
+}
+
+.icon-btn:hover {
+  background: var(--bg-sunken);
+  color: var(--fg);
+}
+
+/* ----------------------------------------------------------------- 提示条 */
+
+.banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 10px 14px 0;
+  padding: 9px 11px;
+  border-radius: 8px;
+  background: var(--danger-soft);
+  color: var(--danger);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+/* 捕获失败的提示本身是多行的，需要保留换行 */
+.banner > span {
+  white-space: pre-line;
+  min-width: 0;
+}
+
+.banner.info {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.link-btn {
+  margin-left: auto;
+  flex: none;
+  padding: 3px 9px;
+  border: none;
+  border-radius: 6px;
+  /* 注意别写成 background: currentColor —— 那取的是元素自身的 color，
+     会和下面的 color 撞成白底白字 */
+  background: var(--danger);
+  color: #fff;
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.banner.info .link-btn {
+  background: var(--accent);
+}
+
+/* ----------------------------------------------------------------- 主按钮 */
+
+.hero {
+  padding: 14px 14px 10px;
+}
+
+.primary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  height: 42px;
+  border: none;
+  border-radius: var(--radius);
+  background: var(--accent);
+  color: var(--accent-fg);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: filter 0.15s ease, transform 0.06s ease;
+}
+
+.primary:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+.primary:active:not(:disabled) {
+  transform: scale(0.99);
+}
+
+.primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.primary.recording {
+  background: var(--danger);
+}
+
+.primary-icon {
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+  background: currentColor;
+}
+
+.primary.recording .primary-icon {
+  border-radius: 2px;
+}
+
+.primary:not(.recording) .primary-icon {
+  border-radius: 50%;
+}
+
+.primary.busy .primary-icon {
+  border-radius: 50%;
+  animation: pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.hint {
+  margin: 9px 1px 0;
+  color: var(--fg-muted);
+  font-size: 11.5px;
+  line-height: 1.5;
+}
+
+.hint strong {
+  color: var(--fg);
+  font-weight: 600;
+}
+
+/* --------------------------------------------------------------- 状态行 */
+
+.meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 14px 8px;
+  color: var(--fg-muted);
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.meta-time {
+  color: var(--fg);
+  font-weight: 600;
+}
+
+.meta-sep {
+  color: var(--fg-faint);
+}
+
+.meta-pending {
+  margin-left: auto;
+  padding: 1px 6px;
+  border-radius: 5px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+/* --------------------------------------------------------------- 来源页面 */
+
+.source {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 14px 9px;
+  padding: 5px 8px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--bg-soft);
+  color: var(--fg-muted);
+  font-size: 11.5px;
+  text-decoration: none;
+  overflow: hidden;
+}
+
+.source:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.source img {
+  flex: none;
+  border-radius: 3px;
+}
+
+.source img.broken {
+  display: none;
+}
+
+.source span {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* --------------------------------------------------------------- 工具条 */
+
+.toolbar {
+  display: flex;
+  gap: 6px;
+  padding: 0 14px 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.ghost {
+  flex: 1;
+  height: 30px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--fg);
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.ghost:hover:not(:disabled) {
+  background: var(--bg-sunken);
+}
+
+.ghost:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.ghost.danger:hover:not(:disabled) {
+  border-color: var(--danger);
+  color: var(--danger);
+  background: var(--danger-soft);
+}
+
+/* --------------------------------------------------------------- 转录区 */
+
+.transcript {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 10px 14px 16px;
+  scrollbar-width: thin;
+}
+
+.transcript::-webkit-scrollbar {
+  width: 8px;
+}
+
+.transcript::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 8px;
+  background: var(--border);
+  background-clip: content-box;
+}
+
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 46px 20px;
+  color: var(--fg-faint);
+  text-align: center;
+}
+
+.empty p {
+  margin: 8px 0 0;
+  color: var(--fg-muted);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.empty span {
+  font-size: 11.5px;
+}
+
+.seg {
+  display: flex;
+  gap: 9px;
+  padding: 7px 9px;
+  margin-bottom: 3px;
+  border-radius: 8px;
+}
+
+.seg:hover {
+  background: var(--bg-soft);
+}
+
+.seg.error {
+  background: var(--danger-soft);
+}
+
+.seg-ts {
+  flex: none;
+  padding-top: 1px;
+  color: var(--fg-faint);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+
+.seg-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.seg-body {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+/* 译文：左侧细线 + 缩进 + 弱化颜色，扫读时和原文一眼分得开 */
+.seg-trans {
+  margin: 4px 0 0;
+  padding-left: 8px;
+  border-left: 2px solid var(--border);
+  color: var(--fg-muted);
+  font-size: 12.5px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.seg-trans.error {
+  border-left-color: var(--danger);
+  color: var(--danger);
+}
+
+.seg-trans.pending {
+  border-left-color: var(--border);
+}
+
+.skeleton.inline {
+  display: block;
+  flex: none;
+  padding-top: 0;
+}
+
+.skeleton.inline i {
+  width: 55%;
+}
+
+/* 生词：一行一个，单词等宽字体，音标弱化 */
+.seg-vocab {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin: 6px 0 0;
+  padding: 0 0 0 8px;
+  list-style: none;
+}
+
+.seg-vocab li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 5px;
+  font-size: 11.5px;
+  line-height: 1.5;
+}
+
+.seg-vocab b {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--fg);
+}
+
+.seg-vocab i {
+  color: var(--fg-faint);
+  font-size: 11px;
+  font-style: normal;
+}
+
+.seg-vocab span {
+  min-width: 0;
+  color: var(--fg-muted);
+  overflow-wrap: anywhere;
+}
+
+.seg.error .seg-body {
+  color: var(--danger);
+}
+
+.seg-empty .seg-body {
+  color: var(--fg-faint);
+  font-style: italic;
+}
+
+/* 识别中的骨架屏 */
+.skeleton {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding-top: 4px;
+}
+
+.skeleton i {
+  display: block;
+  height: 8px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, var(--bg-sunken) 25%, var(--border) 37%, var(--bg-sunken) 63%);
+  background-size: 400% 100%;
+  animation: shimmer 1.5s ease infinite;
+}
+
+.skeleton i:nth-child(2) {
+  width: 62%;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: 0 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton i {
+    animation: none;
+  }
+}
+
+/* ----------------------------------------------------------------- 提示 */
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 16px;
+  transform: translateX(-50%);
+  max-width: 88%;
+  padding: 7px 14px;
+  border-radius: 999px;
+  background: var(--fg);
+  color: var(--bg);
+  font-size: 12px;
+  box-shadow: var(--shadow);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.toast.error {
+  background: var(--danger);
+  color: #fff;
+}

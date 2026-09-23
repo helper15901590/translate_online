@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <title>网页视频转文字</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <div class="app">
+      <header class="bar">
+        <div class="brand">
+          <span class="pulse" id="pulse" aria-hidden="true"></span>
+          <span class="brand-title">网页视频转文字</span>
+        </div>
+        <div class="bar-actions">
+          <button class="icon-btn" id="btnOptions" title="设置" aria-label="设置">
+            <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+              <path
+                fill="currentColor"
+                d="M12 15.5A3.5 3.5 0 1 1 15.5 12A3.5 3.5 0 0 1 12 15.5m7.43-2.53c.04-.32.07-.64.07-.97s-.03-.66-.07-1l2.11-1.63a.5.5 0 0 0 .12-.64l-2-3.46a.5.5 0 0 0-.61-.22l-2.49 1a7.3 7.3 0 0 0-1.69-.98l-.38-2.65A.49.49 0 0 0 14 2h-4a.49.49 0 0 0-.49.42l-.38 2.65c-.61.25-1.17.59-1.69.98l-2.49-1a.5.5 0 0 0-.61.22l-2 3.46a.5.5 0 0 0 .12.64L4.57 11c-.04.34-.07.67-.07 1s.03.65.07.97l-2.11 1.66a.5.5 0 0 0-.12.64l2 3.46c.13.22.39.3.61.22l2.49-1c.52.39 1.08.73 1.69.98l.38 2.65c.04.24.25.42.49.42h4c.24 0 .45-.18.49-.42l.38-2.65c.61-.25 1.17-.59 1.69-.98l2.49 1c.22.08.48 0 .61-.22l2-3.46a.5.5 0 0 0-.12-.64z"
+              />
+            </svg>
+          </button>
+        </div>
+      </header>
+
+      <div class="banner" id="banner" hidden>
+        <span id="bannerText"></span>
+        <button class="link-btn" id="bannerAction" hidden>去设置</button>
+      </div>
+
+      <section class="hero">
+        <button class="primary" id="btnToggle">
+          <span class="primary-icon" id="toggleIcon" aria-hidden="true"></span>
+          <span id="toggleLabel">开始转录</span>
+        </button>
+        <p class="hint" id="hint">
+          先让网页里的视频开始播放，再点上面的按钮。插件会捕获<strong>当前标签页</strong>的音频。
+        </p>
+      </section>
+
+      <section class="meta" id="meta" hidden>
+        <span class="meta-time" id="metaDuration">00:00</span>
+        <span class="meta-sep">·</span>
+        <span id="metaSegments">0 段</span>
+        <span class="meta-sep" id="metaModelSep" hidden>·</span>
+        <span id="metaModel" hidden></span>
+        <span class="meta-pending" id="metaPending" hidden></span>
+      </section>
+
+      <a class="source" id="source" target="_blank" rel="noreferrer" hidden>
+        <img id="sourceIcon" alt="" width="14" height="14" />
+        <span id="sourceTitle"></span>
+      </a>
+
+      <section class="toolbar">
+        <button class="ghost" id="btnCopy" title="把当前转录结果以 Markdown 复制到剪贴板">复制 Markdown</button>
+        <button class="ghost" id="btnDownload" title="导出为 .md 文件">下载 .md</button>
+        <button class="ghost danger" id="btnClear" title="清空当前转录结果">清空</button>
+      </section>
+
+      <main class="transcript" id="transcript">
+        <div class="empty">
+          <svg viewBox="0 0 24 24" width="30" height="30" aria-hidden="true">
+            <path
+              fill="currentColor"
+              d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3m7 9a7 7 0 0 1-6 6.92V21h-2v-2.08A7 7 0 0 1 5 12h2a5 5 0 0 0 10 0z"
+            />
+          </svg>
+          <p>还没有转录内容</p>
+          <span>识别结果会按时间顺序实时出现在这里</span>
+        </div>
+      </main>
+
+      <div class="toast" id="toast" hidden></div>
+    </div>
+
+    <script type="module" src="popup.js"></script>
+  </body>
+</html>

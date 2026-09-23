@@ -1,0 +1,8 @@
+# Claude Code 的本地设置：只和本机有关，不该发布
+.claude/settings.local.json
+
+# 编辑器与系统噪声
+.DS_Store
+Thumbs.db
+*.swp
+*.log

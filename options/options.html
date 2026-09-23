@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <title>网页视频转文字 · 设置</title>
+    <link rel="stylesheet" href="options.css" />
+  </head>
+  <body>
+    <div class="page">
+      <header class="page-head">
+        <h1>网页视频转文字</h1>
+        <p class="sub">
+          捕获标签页正在播放的音频，交给阿里云百炼（DashScope）识别成文字，可导出 Markdown。
+        </p>
+      </header>
+
+      <section class="card">
+        <h2>接口凭据</h2>
+
+        <div class="field">
+          <label for="apiKey">DashScope API Key</label>
+          <div class="secret">
+            <input id="apiKey" type="password" placeholder="sk-xxxxxxxxxxxxxxxxxxxxxxxx" autocomplete="off" spellcheck="false" />
+            <button type="button" class="reveal" id="btnReveal" title="显示 / 隐藏">显示</button>
+          </div>
+          <p class="help">
+            在<a id="consoleLink" href="https://bailian.console.aliyun.com/" target="_blank" rel="noreferrer">阿里云百炼控制台</a>的「API-KEY 管理」里创建。
+            Key 只保存在这台电脑的浏览器本地存储里，不会上传到任何第三方。
+          </p>
+        </div>
+
+        <div class="field">
+          <label for="region">服务地域</label>
+          <select id="region"></select>
+          <p class="help">Key 与地域必须匹配：北京站和国际站的 Key 互不通用。</p>
+        </div>
+
+        <div class="field" id="customUrlField" hidden>
+          <label for="customBaseUrl">自定义 Base URL</label>
+          <input id="customBaseUrl" type="text" placeholder="https://{WorkspaceId}.cn-beijing.maas.aliyuncs.com" spellcheck="false" />
+          <p class="help">如果控制台给你的是带 WorkspaceId 的专属域名，把域名部分填在这里（不要带路径）。</p>
+        </div>
+
+        <div class="field">
+          <label for="engine">调用通道</label>
+          <select id="engine"></select>
+          <p class="help">
+            两条通道接的是同一个模型，任选其一即可。识别报参数错误时可以换另一条试试。
+          </p>
+        </div>
+
+        <div class="field">
+          <label for="model">语音识别模型</label>
+          <input id="model" type="text" list="modelList" spellcheck="false" />
+          <datalist id="modelList"></datalist>
+          <p class="help">
+            同步接口单次限 10MB / 5 分钟以内，插件会自动把音频切片后逐段识别。
+          </p>
+        </div>
+
+        <div class="actions">
+          <button type="button" class="btn secondary" id="btnTest">测试连接</button>
+          <span class="test-result" id="testResult"></span>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>识别参数</h2>
+
+        <div class="field">
+          <label for="language">音频语言</label>
+          <select id="language"></select>
+          <p class="help">指定已知语言能明显提升准确率；不确定就留「自动检测」。</p>
+        </div>
+
+        <div class="field">
+          <label for="chunkSeconds">分片时长（秒）</label>
+          <input id="chunkSeconds" type="number" min="15" max="300" step="5" />
+          <p class="help">
+            音频每隔这么久切一段送出去识别。切得短，出结果更快、失败重试代价更小；切得长，跨句连贯性略好。
+            建议 30–90 秒。
+          </p>
+        </div>
+
+        <div class="field">
+          <label for="sampleRate">送给模型的采样率</label>
+          <select id="sampleRate">
+            <option value="16000">16000 Hz（推荐，语音识别标准采样率）</option>
+            <option value="22050">22050 Hz</option>
+            <option value="44100">44100 Hz</option>
+            <option value="48000">48000 Hz（体积最大）</option>
+          </select>
+          <p class="help">采样率越高音频体积越大，但对识别准确率几乎没有帮助。</p>
+        </div>
+
+        <div class="field">
+          <label for="context">热词 / 上下文提示</label>
+          <textarea id="context" rows="3" placeholder="例如：本期嘉宾是张一鸣，话题围绕大模型推理优化……" spellcheck="false"></textarea>
+          <p class="help">填入人名、术语、专有名词，能显著降低这些词的错误率。留空即可。</p>
+        </div>
+
+        <label class="check">
+          <input type="checkbox" id="enableItn" />
+          <span>
+            <strong>逆文本规整（ITN）</strong>
+            <em>把「二零二五年三月」写成「2025 年 3 月」，把「百分之三十」写成「30%」。</em>
+          </span>
+        </label>
+
+        <label class="check">
+          <input type="checkbox" id="carryContext" />
+          <span>
+            <strong>把上一段的识别结果作为上下文</strong>
+            <em>跨片段的用词更连贯；小概率让模型重复上一段内容，遇到就关掉。</em>
+          </span>
+        </label>
+      </section>
+
+      <section class="card">
+        <h2>逐段翻译与生词</h2>
+
+        <label class="check">
+          <input type="checkbox" id="translateEnabled" />
+          <span>
+            <strong>识别完成后逐段翻译</strong>
+            <em>
+              每个识别分片单独送一次文本模型，所以译文和原文天然一段对一段。
+              翻译和识别是并行跑的，第 N 段在翻译时第 N+1 段可以同时识别，整体耗时接近只做识别。
+            </em>
+          </span>
+        </label>
+
+        <div class="field">
+          <label for="translateModel">翻译模型</label>
+          <input id="translateModel" type="text" list="translateModelList" spellcheck="false" />
+          <datalist id="translateModelList"></datalist>
+          <p class="help">
+            和语音识别是两个独立配置。推荐 <code>qwen-plus</code>（质量与价格平衡）；
+            追求速度用 <code>qwen-flash</code>。
+            <strong>该模型必须支持 JSON 输出</strong>，否则会报参数错误。
+          </p>
+        </div>
+
+        <div class="field">
+          <label for="translateTarget">译文语言</label>
+          <input id="translateTarget" type="text" list="targetLanguageList" spellcheck="false" />
+          <datalist id="targetLanguageList"></datalist>
+          <p class="help">
+            如果和上面的「音频语言」是同一种，插件会自动跳过翻译，不会白花请求。
+          </p>
+        </div>
+
+        <div class="field">
+          <label for="vocabMode">生词提取</label>
+          <select id="vocabMode"></select>
+        </div>
+
+        <div class="field" id="vocabLevelField">
+          <label for="vocabLevel">难度基线</label>
+          <select id="vocabLevel"></select>
+          <p class="help">低于这个难度的词不会被挑出来，避免满屏都是 the、make 这类基础词。</p>
+        </div>
+
+        <div class="field" id="vocabCountField">
+          <label for="vocabPerSegment">每段最多提取几个</label>
+          <input id="vocabPerSegment" type="number" min="1" max="20" step="1" />
+          <p class="help">按重要性排序，超出部分会被丢弃。</p>
+        </div>
+
+        <div class="field" id="phoneticField">
+          <label for="phoneticStyle">音标</label>
+          <select id="phoneticStyle"></select>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>录制与导出</h2>
+
+        <label class="check">
+          <input type="checkbox" id="monitor" />
+          <span>
+            <strong>录制时保持页面声音外放</strong>
+            <em>Chrome 捕获标签页音频后默认会让该标签页静音，勾选后插件会把声音重新接到扬声器。</em>
+          </span>
+        </label>
+
+        <label class="check">
+          <input type="checkbox" id="autoDownload" />
+          <span>
+            <strong>停止录制后自动下载 Markdown</strong>
+            <em>不用再点一次「下载 .md」。</em>
+          </span>
+        </label>
+
+        <div class="field">
+          <label for="filenameTemplate">导出文件名模板</label>
+          <input id="filenameTemplate" type="text" spellcheck="false" />
+          <p class="help">
+            可用占位符：<code>{title}</code> 页面标题、<code>{date}</code> 日期、<code>{time}</code> 时间、
+            <code>{site}</code> 站点域名、<code>{model}</code> 模型名。
+          </p>
+        </div>
+      </section>
+
+      <footer class="page-foot">
+        <button type="button" class="btn primary" id="btnSave">保存设置</button>
+        <button type="button" class="btn secondary" id="btnReset">恢复默认</button>
+        <span class="save-state" id="saveState"></span>
+      </footer>
+    </div>
+
+    <script type="module" src="options.js"></script>
+  </body>
+</html>
